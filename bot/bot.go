@@ -7,8 +7,9 @@ import (
 )
 
 type Bot struct {
-	Users []int64      // все пользователи здесь / их список
-	b     *telebot.Bot // объект, который умеет общаться с тг апи
+	Users           []int64      // все пользователи здесь / их список
+	b               *telebot.Bot // объект, который умеет общаться с тг апи
+	alreadyNotified bool
 }
 
 // конструктор
@@ -46,6 +47,10 @@ func (bot *Bot) Start(token string) {
 
 // отправляем уведомление в телеграм
 func (bot *Bot) NotifyAll(message string) {
+	if bot.alreadyNotified {
+		return
+	}
+
 	for _, user := range bot.Users {
 		rec := &telebot.User{ID: user} /*
 			telebot не умеет отправлять просто по числу int64. Ему нужен объект который реализует интерфейс. Поэтому создаём минимальный telebot.User с одним полем ID — этого достаточно
