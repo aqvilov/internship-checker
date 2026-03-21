@@ -50,6 +50,7 @@ func (bot *Bot) NotifyAll(message string) {
 	if bot.alreadyNotified {
 		return
 	}
+	bot.alreadyNotified = true
 
 	for _, user := range bot.Users {
 		rec := &telebot.User{ID: user} /*
