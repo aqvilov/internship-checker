@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+type Site struct {
+	Name    string
+	URL     string
+	Keyword string // по чему будем искать
+}
+
 func CheckSite(url string, keyword string) (bool, error) {
 	resp, err := http.Get(url)
 	if err != nil {
