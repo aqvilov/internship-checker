@@ -1,30 +1,35 @@
 package main
 
 import (
+	"fmt"
 	"internship/bot"
 	"internship/checker"
 	"log"
+	"os"
 	"time"
 )
 
 func main() {
-	b := bot.New()
-
-	go b.Start("8638425009:AAFsF0IJ_LzISw5PInnhctoCd7aenzbCWEo")
-	time.Sleep(2 * time.Second)
-
-	ticker := time.NewTicker(10 * time.Second)
-	for range ticker.C {
-		log.Println("проверяю сайт...")
-		found, err := checker.CheckSite("https://start.avito.ru/", "набор открыт")
-		if err != nil {
-			log.Println("ошибка:", err)
-			continue
-		}
-		log.Println("found:", found)
-		if found {
-			b.NotifyAll("Стажировка открылась!")
-		}
+	sites := []checker.Site{
+		{Name: "Авито", URL: "https://start.avito.ru/", Keyword: "набор открыт"},
 	}
 
+	b := bot.New()
+	go b.Start(os.Getenv("TG_TOKEN"))
+	time.Sleep(2 * time.Second)
+
+	ticker := time.NewTicker(1 * time.Hour)
+	for range ticker.C {
+		for _, site := range sites {
+			log.Printf("проверяю %s...", site.Name)
+			found, err := checker.CheckSite(site.URL, site.Keyword)
+			if err != nil {
+				log.Println("ошибка:", err)
+				continue
+			}
+			if found {
+				b.NotifyAll(fmt.Sprintf("Стажировка у %s открылась: %s\n", site.Name, site.URL))
+			}
+		}
+	}
 }
