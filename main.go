@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"internship/bot"
 	"internship/checker"
+	"internship/health"
 	"internship/storage"
 	"log"
 	"os"
@@ -13,6 +14,8 @@ import (
 func main() {
 	sites := []checker.Site{
 		{Name: "Авито", URL: "https://start.avito.ru/", Keyword: "набор открыт"},
+		{Name: "Т-Банк", URL: "https://education.tbank.ru/start/go/", Keyword: "подать заявку"},
+		{Name: "Kasperskiy", URL: "https://careers.kaspersky.ru/stack/GO", Keyword: "developer go"}, // тут пока простая вака
 	}
 
 	connStr := os.Getenv("DATABASE_URL")
@@ -23,7 +26,11 @@ func main() {
 	}
 	log.Println("БД подключена")
 
-	b := bot.New(db)
+	// проверяем /health
+	go health.StartServer(db.DB())
+	//http://localhost:8080/health
+
+	b := bot.New(db, sites) // БЫЛО ТАК b := bot.New(db)
 	go b.Start(os.Getenv("TG_TOKEN"))
 	time.Sleep(2 * time.Second)
 
@@ -39,7 +46,7 @@ func main() {
 			log.Printf("found: %v", found)
 			if found {
 				// чет тут придумать веселое
-				b.NotifyAll(site.Name, fmt.Sprintf("Стажировка у %s открылась\n%s", site.Name, site.URL))
+				b.NotifyAll(site.Name, fmt.Sprintf("Стажировка у %s открылась\nСсылка: %s", site.Name, site.URL))
 			}
 		}
 	}
