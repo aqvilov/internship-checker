@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"internship/bot"
 	"internship/checker"
+	"internship/storage"
 	"log"
 	"os"
 	"time"
@@ -14,7 +15,15 @@ func main() {
 		{Name: "Авито", URL: "https://start.avito.ru/", Keyword: "набор открыт"},
 	}
 
-	b := bot.New()
+	connStr := os.Getenv("DATABASE_URL")
+
+	db, err := storage.New(connStr)
+	if err != nil {
+		log.Fatalf("ошибка подключения к БД: %v", err)
+	}
+	log.Println("БД подключена")
+
+	b := bot.New(db)
 	go b.Start(os.Getenv("TG_TOKEN"))
 	time.Sleep(2 * time.Second)
 
@@ -27,8 +36,10 @@ func main() {
 				log.Println("ошибка:", err)
 				continue
 			}
+			log.Printf("found: %v", found)
 			if found {
-				b.NotifyAll(fmt.Sprintf("Стажировка у %s открылась: %s\n", site.Name, site.URL))
+				// чет тут придумать веселое
+				b.NotifyAll(site.Name, fmt.Sprintf("Стажировка у %s открылась\n%s", site.Name, site.URL))
 			}
 		}
 	}
