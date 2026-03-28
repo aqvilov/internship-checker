@@ -10,24 +10,23 @@ import (
 type Site struct {
 	Name    string
 	URL     string
-	Keyword string // по чему будем искать
+	Keyword string
 }
 
 func CheckSite(url string, keyword string) (bool, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return false, fmt.Errorf("ошибка отправки get-запроса %v", err)
+		return false, fmt.Errorf("ошибка отправки get-запроса %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("ошибка: %v", err)
+		return false, fmt.Errorf("ошибка чтения тела %w", err)
 	}
 
-	if strings.Contains(strings.ToLower(string(body)), keyword) {
+	if strings.Contains(strings.ToLower(string(body)), strings.ToLower(keyword)) {
 		return true, nil
 	}
 	return false, nil
-
 }
