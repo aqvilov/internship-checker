@@ -1,25 +1,26 @@
 package bot
 
 import (
-	"gopkg.in/telebot.v3"
+	"internship/storage"
 	"log"
 	"time"
+
+	telebot "gopkg.in/telebot.v3"
 )
 
 type Bot struct {
-	Users           []int64      // все пользователи здесь / их список
-	b               *telebot.Bot // объект, который умеет общаться с тг апи
-	alreadyNotified bool
+	b        *telebot.Bot
+	storage  *storage.Storage
+	notified map[string]bool // ключ типа bool чтобы чекать каждый сайт отдельно (отдельный флаг для каждого)
 }
 
-// конструктор
-// аналог b := &bot.Bot{}
-func New() *Bot {
-	return &Bot{}
+func New(storage *storage.Storage) *Bot {
+	return &Bot{
+		storage:  storage,
+		notified: make(map[string]bool),
+	}
 }
 
-// получаем chatID пользователя в tg куда будем отправлять
-// запускаем в отдельной горутине, потому что
 func (bot *Bot) Start(token string) {
 	settings := telebot.Settings{
 		Token:  token,
@@ -29,33 +30,43 @@ func (bot *Bot) Start(token string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	b.Handle("/start", func(c telebot.Context) error {
 		chatID := c.Sender().ID
-		bot.Users = append(bot.Users, chatID)
-
-		log.Printf("новый пользователь: %d", chatID)
-
-		/*
-			ИЗМЕНИТЬ RETURN
-		*/
-
-		return c.Send("Отлично, ты подписался на уведомления!")
+		if err := bot.storage.AddUser(chatID); err != nil {
+			log.Printf("ошибка сохранения пользователя: %v", err)
+		} else {
+			log.Printf("новый пользователь: %d", chatID)
+		}
+		return c.Send("Отлично, ты подписался на уведомления о стажировках!")
 	})
-	bot.b = b // ПЕРЕДАЕМ ВСЕ В СТРУКТУРУ ЧТОБЫ ХРАНИЛ ЗНАЧЕНИЯ
+
+	bot.b = b
 	b.Start()
 }
 
-// отправляем уведомление в телеграм
-func (bot *Bot) NotifyAll(message string) {
-	if bot.alreadyNotified {
+func (bot *Bot) NotifyAll(siteName string, message string) {
+	if bot.notified[siteName] {
 		return
 	}
-	bot.alreadyNotified = true
 
-	for _, user := range bot.Users {
-		rec := &telebot.User{ID: user} /*
-			telebot не умеет отправлять просто по числу int64. Ему нужен объект который реализует интерфейс. Поэтому создаём минимальный telebot.User с одним полем ID — этого достаточно
-		*/
-		bot.b.Send(rec, message)
+	users, err := bot.storage.GetUsers()
+	if err != nil {
+		log.Printf("ошибка получения пользователей: %v", err)
+		return
 	}
+
+	if len(users) == 0 {
+		log.Println("нет пользователей для рассылки")
+		return
+	}
+
+	bot.notified[siteName] = true
+	for _, chatID := range users {
+		rec := &telebot.User{ID: chatID}
+		if _, err := bot.b.Send(rec, message); err != nil {
+			log.Printf("ошибка отправки пользователю %d: %v", chatID, err)
+		}
+	}
+	log.Printf("разослано %d пользователям", len(users))
 }
