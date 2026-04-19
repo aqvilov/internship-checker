@@ -1,11 +1,15 @@
 package checker
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
+	"time"
+
+	"github.com/chromedp/chromedp"
 )
+
+// go get github.com/chromedp/chromedp
 
 type Site struct {
 	Name    string
@@ -14,19 +18,23 @@ type Site struct {
 }
 
 func CheckSite(url string, keyword string) (bool, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return false, fmt.Errorf("ошибка отправки get-запроса %w", err)
-	}
-	defer resp.Body.Close()
+	ctx, cancel := chromedp.NewContext(context.Background())
+	defer cancel()
 
-	body, err := io.ReadAll(resp.Body)
+	ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	var body string
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(url),
+		chromedp.WaitReady("body"),
+		chromedp.Sleep(2*time.Second),
+		chromedp.Text("body", &body, chromedp.ByQuery),
+	)
 	if err != nil {
-		return false, fmt.Errorf("ошибка чтения тела %w", err)
+		return false, fmt.Errorf("ошибка chromedp: %w", err)
 	}
 
-	if strings.Contains(strings.ToLower(string(body)), strings.ToLower(keyword)) {
-		return true, nil
-	}
-	return false, nil
+	return strings.Contains(strings.ToLower(body), strings.ToLower(keyword)), nil
 }
