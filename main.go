@@ -8,7 +8,10 @@ import (
 	"internship/storage"
 	"log"
 	"os"
+	"sync"
 	"time"
+
+	"github.com/chromedp/chromedp"
 )
 
 func main() {
@@ -32,22 +35,26 @@ func main() {
 
 	b := bot.New(db, sites) // БЫЛО ТАК b := bot.New(db)
 	go b.Start(os.Getenv("TG_TOKEN"))
-	time.Sleep(2 * time.Second)
+	chromedp.WaitVisible(".some-specific-selector", chromedp.ByQuery)
 
 	ticker := time.NewTicker(1 * time.Hour)
 	for range ticker.C {
+		var wg sync.WaitGroup
 		for _, site := range sites {
-			log.Printf("проверяю %s...", site.Name)
-			found, err := checker.CheckSite(site.URL, site.Keyword)
-			if err != nil {
-				log.Println("ошибка:", err)
-				continue
-			}
-			log.Printf("found: %v", found)
-			if found {
-				// чет тут придумать веселое
-				b.NotifyAll(site.Name, fmt.Sprintf("Стажировка у %s открылась\nСсылка: %s", site.Name, site.URL))
-			}
+			wg.Add(1)
+			go func(s checker.Site) {
+				defer wg.Done()
+				log.Printf("проверяю %s...", s.Name)
+				found, err := checker.CheckSite(s.URL, s.Keyword)
+				if err != nil {
+					log.Println("ошибка:", err)
+					return
+				}
+				if found {
+					b.NotifyAll(s.Name, fmt.Sprintf("Стажировка у %s открылась!\nСсылка: %s", s.Name, s.URL))
+				}
+			}(site)
 		}
+		wg.Wait()
 	}
 }
