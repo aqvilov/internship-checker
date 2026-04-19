@@ -3,3 +3,7 @@
 .vscode/
 *.iml
 *.exe
+build/
+.idea/
+*.tmp
+
