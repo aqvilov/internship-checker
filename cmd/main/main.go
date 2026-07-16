@@ -11,17 +11,29 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chromedp/chromedp"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("файл .env не найден, использую переменные окружения системы")
+	}
+
 	sites := []checker.Site{
 		{Name: "Авито", URL: "https://start.avito.ru/", Keyword: "набор открыт"},
 		{Name: "Т-Банк", URL: "https://education.tbank.ru/start/go/", Keyword: "подать заявку"},
-		{Name: "Kasperskiy", URL: "https://careers.kaspersky.ru/stack/GO", Keyword: "developer go"}, // тут пока простая вака
+		{Name: "Kasperskiy", URL: "https://careers.kaspersky.ru/stack/GO", Keyword: "developer go"},
 	}
 
 	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		log.Fatal("переменная окружения DATABASE_URL не задана")
+	}
+
+	tgToken := os.Getenv("TG_TOKEN")
+	if tgToken == "" {
+		log.Fatal("переменная окружения TG_TOKEN не задана")
+	}
 
 	db, err := storage.New(connStr)
 	if err != nil {
@@ -29,13 +41,10 @@ func main() {
 	}
 	log.Println("БД подключена")
 
-	// проверяем /health
 	go health.StartServer(db.DB())
-	//http://localhost:8080/health
 
-	b := bot.New(db, sites) // БЫЛО ТАК b := bot.New(db)
-	go b.Start(os.Getenv("TG_TOKEN"))
-	chromedp.WaitVisible(".some-specific-selector", chromedp.ByQuery)
+	b := bot.New(db, sites)
+	go b.Start(tgToken)
 
 	ticker := time.NewTicker(1 * time.Hour)
 	for range ticker.C {
