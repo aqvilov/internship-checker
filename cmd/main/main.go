@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"internship/bot"
-	"internship/checker"
-	"internship/health"
-	"internship/storage"
+	"internship/internal/bot"
+	"internship/internal/checker"
+	"internship/internal/health"
+	"internship/internal/storage"
 	"log"
 	"os"
 	"sync"

@@ -1,8 +1,8 @@
 package bot
 
 import (
-	"internship/checker"
-	"internship/storage"
+	"internship/internal/checker"
+	"internship/internal/storage"
 	"log"
 	"strings"
 	"time"
