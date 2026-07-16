@@ -5,6 +5,7 @@ import (
 	"internship/internal/storage"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	telebot "gopkg.in/telebot.v3"
@@ -13,6 +14,7 @@ import (
 type Bot struct {
 	b        *telebot.Bot
 	storage  *storage.Storage
+	mutex    sync.Mutex
 	notified map[string]bool
 	sites    []checker.Site // список всех сайтов для кнопок
 }
@@ -132,9 +134,13 @@ func (bot *Bot) buildMenu(chatID int64) (*telebot.ReplyMarkup, string, error) {
 }
 
 func (bot *Bot) NotifyAll(siteName string, message string) {
+	bot.mutex.Lock()
 	if bot.notified[siteName] {
+		bot.mutex.Unlock()
 		return
 	}
+	bot.notified[siteName] = true
+	bot.mutex.Unlock()
 
 	users, err := bot.storage.GetSubscribers(siteName)
 	if err != nil {
