@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"internship/internal/bot"
 	"internship/internal/checker"
@@ -8,11 +9,16 @@ import (
 	"internship/internal/storage"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
 )
+
+// ограничивает число одновременно открытых вкладок Chromium при параллельной проверке сайтов.
+const maxConcurrentChecks = 2
 
 func main() {
 	if err := godotenv.Load(); err != nil {
@@ -46,24 +52,38 @@ func main() {
 	b := bot.New(db, sites)
 	go b.Start(tgToken)
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	c := checker.NewChecker(maxConcurrentChecks)
+	defer c.Close()
+
 	ticker := time.NewTicker(1 * time.Hour)
-	for range ticker.C {
-		var wg sync.WaitGroup
-		for _, site := range sites {
-			wg.Add(1)
-			go func(s checker.Site) {
-				defer wg.Done()
-				log.Printf("проверяю %s...", s.Name)
-				found, err := checker.CheckSite(s.URL, s.Keyword)
-				if err != nil {
-					log.Println("ошибка:", err)
-					return
-				}
-				if found {
-					b.NotifyAll(s.Name, fmt.Sprintf("Стажировка у %s открылась!\nСсылка: %s", s.Name, s.URL))
-				}
-			}(site)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("получен сигнал завершения, останавливаюсь...")
+			return
+		case <-ticker.C:
+			var wg sync.WaitGroup
+			for _, site := range sites {
+				wg.Add(1)
+				go func(s checker.Site) {
+					defer wg.Done()
+					log.Printf("проверяю %s...", s.Name)
+					found, err := c.Check(ctx, s)
+					if err != nil {
+						log.Println("ошибка:", err)
+						return
+					}
+					if found {
+						b.NotifyAll(s.Name, fmt.Sprintf("Стажировка у %s открылась!\nСсылка: %s", s.Name, s.URL))
+					}
+				}(site)
+			}
+			wg.Wait()
 		}
-		wg.Wait()
 	}
 }
