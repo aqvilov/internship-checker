@@ -6,4 +6,4 @@
 build/
 .idea/
 *.tmp
-
+*.claude/
